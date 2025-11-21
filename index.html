@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rohit PortFolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --text-color: #202124;
+            --bg-color: #ffffff;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .logo-placeholder {
+            position: absolute;
+            top: 40px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #5f6368;
+            letter-spacing: -0.02em;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 600;
+            letter-spacing: -0.04em;
+            line-height: 1.1;
+            margin: 0 0 20px 0;
+            max-width: 800px;
+            background: linear-gradient(180deg, #202124 0%, #5f6368 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subheadline {
+            font-size: 1.25rem;
+            color: #5f6368;
+            margin: 0 0 40px 0;
+            font-weight: 400;
+        }
+
+        .cta-group {
+            pointer-events: auto;
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: #f1f3f4;
+            color: var(--text-color);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; padding: 0 20px; }
+            p.subheadline { font-size: 1rem; padding: 0 20px; }
+            .cta-group { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div class="hero-overlay">
+    <div class="logo-placeholder">Rohit's PortFolio</div>
+    <h1>Welcome to my PortFolio </h1>
+    <p class="subheadline">this web page all things are interactive</p>
+    <div class="cta-group">
+        <a href="#" class="btn btn-primary">Go for Projects</a>
+        <a href="#" class="btn btn-secondary">Explore PortFolio</a>
+    </div>
+</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+const TEXTURE_SIZE = 256;
+const NUM_PARTICLES = TEXTURE_SIZE * TEXTURE_SIZE;
+
+const PARTICLE_COLOR = new THREE.Color(0x4285F4);
+const PARTICLE_SIZE = 2.5;
+
+const noiseGLSL = `
+    vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+    vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+    float snoise(vec3 v){ 
+        const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+        const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+        vec3 i  = floor(v + dot(v, C.yyy) );
+        vec3 x0 = v - i + dot(i, C.xxx) ;
+        vec3 g = step(x0.yzx, x0.xyz);
+        vec3 l = 1.0 - g;
+        vec3 i1 = min( g.xyz, l.zxy );
+        vec3 i2 = max( g.xyz, l.zxy );
+        vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+        vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+        vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
+        i = mod(i, 289.0 ); 
+        vec4 p = permute( permute( permute( 
+                    i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+                + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+        float n_ = 1.0/7.0;
+        vec3  ns = n_ * D.wyz - D.xzx;
+        vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+        vec4 x_ = floor(j * ns.z);
+        vec4 y_ = floor(j - 7.0 * x_ );
+        vec4 x = x_ *ns.x + ns.yyyy;
+        vec4 y = y_ *ns.x + ns.yyyy;
+        vec4 h = 1.0 - abs(x) - abs(y);
+        vec4 b0 = vec4( x.xy, y.xy );
+        vec4 b1 = vec4( x.zw, y.zw );
+        vec4 s0 = floor(b0)*2.0 + 1.0;
+        vec4 s1 = floor(b1)*2.0 + 1.0;
+        vec4 sh = -step(h, vec4(0.0));
+        vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+        vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+        vec3 p0 = vec3(a0.xy,h.x);
+        vec3 p1 = vec3(a0.zw,h.y);
+        vec3 p2 = vec3(a1.xy,h.z);
+        vec3 p3 = vec3(a1.zw,h.w);
+        vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+        p0 *= norm.x;
+        p1 *= norm.y;
+        p2 *= norm.z;
+        p3 *= norm.w;
+        vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+        m = m * m;
+        return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
+                                    dot(p2,x2), dot(p3,x3) ) );
+    }
+    vec3 curlNoise(vec3 p) {
+        const float e = 0.1;
+        vec3 dx = vec3(e, 0.0, 0.0);
+        vec3 dy = vec3(0.0, e, 0.0);
+        vec3 dz = vec3(0.0, 0.0, e);
+        vec3 p_x0 = snoise(p - dx) * vec3(1.0);
+        vec3 p_x1 = snoise(p + dx) * vec3(1.0);
+        vec3 p_y0 = snoise(p - dy) * vec3(1.0);
+        vec3 p_y1 = snoise(p + dy) * vec3(1.0);
+        vec3 p_z0 = snoise(p - dz) * vec3(1.0);
+        vec3 p_z1 = snoise(p + dz) * vec3(1.0);
+        float x = p_y1.z - p_y0.z - p_z1.y + p_z0.y;
+        float y = p_z1.x - p_z0.x - p_x1.z + p_x0.z;
+        float z = p_x1.y - p_x0.y - p_y1.x + p_y0.x;
+        return normalize(vec3(x, y, z));
+    }
+`;
+
+const simVelFragmentShader = `
+    uniform sampler2D uPosTex;
+    uniform sampler2D uVelTex;
+    uniform vec2 uResolution;
+    uniform vec3 uMouse;
+    uniform float uTime;
+    uniform float uDelta;
+    varying vec2 vUv;
+    ${noiseGLSL}
+    void main() {
+        vec3 pos = texture2D(uPosTex, vUv).rgb;
+        vec3 vel = texture2D(uVelTex, vUv).rgb;
+        float noiseFreq = 0.4; 
+        vec3 flowDir = curlNoise(pos * noiseFreq + uTime * 0.1);
+        float flowStrength = 0.5;
+        vel += flowDir * flowStrength * uDelta;
+        vec3 mousePos = uMouse; 
+        float dist = distance(pos.xy, mousePos.xy);
+        float radius = 2.0;
+        if(dist < radius) {
+            vec3 dir = normalize(pos - mousePos);
+            float force = (1.0 - dist / radius); 
+            vel += dir * force * 15.0 * uDelta; 
+        }
+        vel *= 0.96;
+        float maxSpeed = 3.0;
+        if(length(vel) > maxSpeed) {
+            vel = normalize(vel) * maxSpeed;
+        }
+        gl_FragColor = vec4(vel, 1.0);
+    }
+`;
+
+const simPosFragmentShader = `
+    uniform sampler2D uPosTex;
+    uniform sampler2D uVelTex;
+    uniform float uDelta;
+    uniform vec2 uBoundary;
+    varying vec2 vUv;
+    void main() {
+        vec3 pos = texture2D(uPosTex, vUv).rgb;
+        vec3 vel = texture2D(uVelTex, vUv).rgb;
+        pos += vel * uDelta;
+        if(pos.x > uBoundary.x) pos.x = -uBoundary.x;
+        if(pos.x < -uBoundary.x) pos.x = uBoundary.x;
+        if(pos.y > uBoundary.y) pos.y = -uBoundary.y;
+        if(pos.y < -uBoundary.y) pos.y = uBoundary.y;
+        if(pos.z > 2.0) pos.z = -2.0;
+        if(pos.z < -2.0) pos.z = 2.0;
+        gl_FragColor = vec4(pos, 1.0);
+    }
+`;
+
+const simVertexShader = `
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+const renderVertexShader = `
+    uniform sampler2D uPosTex;
+    uniform vec2 uScreenSize;
+    uniform float uPixelRatio;
+    attribute vec2 reference;
+    varying float vAlpha;
+    void main() {
+        vec3 pos = texture2D(uPosTex, reference).rgb;
+        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        gl_PointSize = ${PARTICLE_SIZE.toFixed(1)} * uPixelRatio * (10.0 / -mvPosition.z);
+        float dist = length(mvPosition.xyz);
+        vAlpha = smoothstep(20.0, 5.0, dist);
+    }
+`;
+
+const renderFragmentShader = `
+    uniform vec3 uColor;
+    varying float vAlpha;
+    void main() {
+        vec2 uv = gl_PointCoord.xy - 0.5;
+        float dist = length(uv);
+        if (dist > 0.5) discard;
+        float alpha = 1.0 - smoothstep(0.3, 0.5, dist);
+        gl_FragColor = vec4(uColor, alpha * vAlpha * 0.8);
+    }
+`;
+
+let renderer, scene, camera;
+let simScene, simCamera;
+let simMesh; 
+let renderMesh; 
+let currentIdx = 0;
+let posTargets = [];
+let velTargets = [];
+let simVelMaterial, simPosMaterial, renderMaterial;
+
+const mouse = new THREE.Vector2(0,0);
+const targetMouse = new THREE.Vector2(0,0);
+const windowSize = new THREE.Vector2(window.innerWidth, window.innerHeight);
+
+const clock = new THREE.Clock();
+
+function init() {
+    const container = document.getElementById('canvas-container');
+
+    renderer = new THREE.WebGLRenderer({ 
+        antialias: true, 
+        alpha: true,
+        powerPreference: "high-performance"
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    if (!renderer.capabilities.isWebGL2 && !renderer.extensions.get('OES_texture_float')) {
+        alert('WebGL 2 or OES_texture_float required');
+        return;
+    }
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
+    
+    const aspect = window.innerWidth / window.innerHeight;
+    camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 100);
+    camera.position.z = 8;
+
+    simScene = new THREE.Scene();
+    simCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    
+    initFBOs();
+
+    const geometry = new THREE.PlaneGeometry(2, 2);
+    simMesh = new THREE.Mesh(geometry, simVelMaterial);
+    simScene.add(simMesh);
+
+    initParticles();
+
+    window.addEventListener('resize', onResize);
+    window.addEventListener('mousemove', onMouseMove);
+
+    renderer.setAnimationLoop(animate);
+}
+
+function initFBOs() {
+    const options = {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        type: THREE.HalfFloatType,
+        format: THREE.RGBAFormat
+    };
+
+    for(let i=0; i<2; i++) {
+        posTargets[i] = new THREE.WebGLRenderTarget(TEXTURE_SIZE, TEXTURE_SIZE, options);
+        velTargets[i] = new THREE.WebGLRenderTarget(TEXTURE_SIZE, TEXTURE_SIZE, options);
+    }
+
+    const posData = new Float32Array(NUM_PARTICLES * 4);
+    const velData = new Float32Array(NUM_PARTICLES * 4);
+
+    const aspect = window.innerWidth / window.innerHeight;
+    const spreadX = 10 * aspect;
+    const spreadY = 10;
+
+    for(let i=0; i<NUM_PARTICLES; i++) {
+        const stride = i * 4;
+        
+        posData[stride] = (Math.random() - 0.5) * spreadX;
+        posData[stride+1] = (Math.random() - 0.5) * spreadY;
+        posData[stride+2] = (Math.random() - 0.5) * 2.0; 
+        posData[stride+3] = 1.0;
+
+        velData[stride] = (Math.random() - 0.5) * 0.1;
+        velData[stride+1] = (Math.random() - 0.5) * 0.1;
+        velData[stride+2] = 0;
+        velData[stride+3] = 1.0;
+    }
+
+    const initialPosTex = new THREE.DataTexture(posData, TEXTURE_SIZE, TEXTURE_SIZE, THREE.RGBAFormat, THREE.FloatType);
+    initialPosTex.needsUpdate = true;
+    
+    const initialVelTex = new THREE.DataTexture(velData, TEXTURE_SIZE, TEXTURE_SIZE, THREE.RGBAFormat, THREE.FloatType);
+    initialVelTex.needsUpdate = true;
+
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: initialPosTex }));
+    simScene.add(quad);
+    renderer.setRenderTarget(posTargets[0]);
+    renderer.render(simScene, simCamera);
+    renderer.setRenderTarget(posTargets[1]);
+    renderer.render(simScene, simCamera);
+    
+    quad.material.map = initialVelTex;
+    renderer.setRenderTarget(velTargets[0]);
+    renderer.render(simScene, simCamera);
+    renderer.setRenderTarget(velTargets[1]);
+    renderer.render(simScene, simCamera);
+    
+    simScene.remove(quad);
+
+    simVelMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uPosTex: { value: null },
+            uVelTex: { value: null },
+            uResolution: { value: new THREE.Vector2(TEXTURE_SIZE, TEXTURE_SIZE) },
+            uMouse: { value: new THREE.Vector3(0, 0, 0) },
+            uTime: { value: 0 },
+            uDelta: { value: 0 }
+        },
+        vertexShader: simVertexShader,
+        fragmentShader: simVelFragmentShader
+    });
+
+    simPosMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uPosTex: { value: null },
+            uVelTex: { value: null },
+            uDelta: { value: 0 },
+            uBoundary: { value: new THREE.Vector2(spreadX/2, spreadY/2) }
+        },
+        vertexShader: simVertexShader,
+        fragmentShader: simPosFragmentShader
+    });
+}
+
+function initParticles() {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(NUM_PARTICLES * 3);
+    const references = new Float32Array(NUM_PARTICLES * 2);
+
+    for(let i=0; i<NUM_PARTICLES; i++) {
+        positions[i*3] = 0; 
+        positions[i*3+1] = 0;
+        positions[i*3+2] = 0;
+
+        const xx = (i % TEXTURE_SIZE) / TEXTURE_SIZE;
+        const yy = Math.floor(i / TEXTURE_SIZE) / TEXTURE_SIZE;
+        
+        references[i*2] = xx + (0.5 / TEXTURE_SIZE);
+        references[i*2+1] = yy + (0.5 / TEXTURE_SIZE);
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('reference', new THREE.BufferAttribute(references, 2));
+
+    renderMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uPosTex: { value: null },
+            uColor: { value: PARTICLE_COLOR },
+            uScreenSize: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+            uPixelRatio: { value: renderer.getPixelRatio() }
+        },
+        vertexShader: renderVertexShader,
+        fragmentShader: renderFragmentShader,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.NormalBlending
+    });
+
+    renderMesh = new THREE.Points(geometry, renderMaterial);
+    scene.add(renderMesh);
+}
+
+function animate() {
+    const delta = Math.min(clock.getDelta(), 0.1);
+    const time = clock.getElapsedTime();
+
+    mouse.lerp(targetMouse, 0.1);
+    
+    const aspect = window.innerWidth / window.innerHeight;
+    const visibleHeight = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
+    const visibleWidth = visibleHeight * aspect;
+
+    const mouseWorld = new THREE.Vector3(
+        mouse.x * visibleWidth / 2,
+        mouse.y * visibleHeight / 2,
+        0
+    );
+
+    const readIdx = currentIdx;
+    const writeIdx = (currentIdx + 1) % 2;
+
+    simMesh.material = simVelMaterial;
+    simVelMaterial.uniforms.uPosTex.value = posTargets[readIdx].texture;
+    simVelMaterial.uniforms.uVelTex.value = velTargets[readIdx].texture;
+    simVelMaterial.uniforms.uTime.value = time;
+    simVelMaterial.uniforms.uDelta.value = delta;
+    simVelMaterial.uniforms.uMouse.value = mouseWorld;
+
+    renderer.setRenderTarget(velTargets[writeIdx]);
+    renderer.render(simScene, simCamera);
+
+    simMesh.material = simPosMaterial;
+    simPosMaterial.uniforms.uPosTex.value = posTargets[readIdx].texture;
+    simPosMaterial.uniforms.uVelTex.value = velTargets[writeIdx].texture;
+    simPosMaterial.uniforms.uDelta.value = delta;
+    simPosMaterial.uniforms.uBoundary.value.set(visibleWidth/2, visibleHeight/2);
+
+    renderer.setRenderTarget(posTargets[writeIdx]);
+    renderer.render(simScene, simCamera);
+
+    renderer.setRenderTarget(null);
+    renderMaterial.uniforms.uPosTex.value = posTargets[writeIdx].texture;
+    renderer.render(scene, camera);
+
+    currentIdx = writeIdx;
+}
+
+function onResize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    
+    renderer.setSize(w, h);
+    
+    renderMaterial.uniforms.uScreenSize.value.set(w, h);
+    windowSize.set(w, h);
+}
+
+function onMouseMove(e) {
+    targetMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    targetMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+}
+
+init();
+</script>
+</body>
+</html>
