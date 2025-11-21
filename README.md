@@ -3,6 +3,11 @@
 This project is an advanced **Google-style Anti-Gravity Particle Simulation Hero Section** built using **Three.js**, **GPGPU shaders**, and **GLSL noise algorithms**.  
 The particles smoothly react to mouse movement and create a high-end, interactive background for the portfolio hero section.
 
+# the Project and Only Its showing the particles moving not full portfolio website. 
+ here is the some screenshot of webpage 
+ <img width="2560" height="1656" alt="Screenshot 2025-11-21 at 2 08 15 PM" src="https://github.com/user-attachments/assets/565a1f2b-401b-48e7-b653-ae14e5df2c2e" />
+
+
 ---
 
 ## Features
@@ -98,4 +103,5 @@ Author
 Rohit Kumar
 Frontend Developer | Interactive UI Designer
 Built using Three.js, GLSL.
+
 
